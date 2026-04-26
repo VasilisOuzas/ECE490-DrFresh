@@ -1,71 +1,71 @@
-ECE490 Team Project Repository
+# ECE490 Team Project Repository
 
-Team Information
+## Team Information
 
 
-Team name:
+Team name: `DrFresh`
+
+
 Team members:
 
-Student 1
-Student 2
+- Ούζας Βασίλειος
+
+- Αλίνο Παπαγιάννης
 
 
 
-Project Title
 
-Add your project title here.
-Project Summary
+## Project Title
+Smart Drinks Dispenser
 
-Write a short summary of the system you are building.
-Objectives
+### Project Summary
 
+This project focuses on the design and implementation of a smart drinks
+dispenser with two liquid tanks, automated serving, refill monitoring, and a
+user-facing GUI. The goal is to demonstrate how sensing, actuation, local decision
+logic and cloud-connected notifications can be integrated into a complete IoT
+system.
 
-Objective 1
-Objective 2
-Objective 3
+## Objectives
 
-Repository Structure
-
-
-
-src/ → source code
-
-docs/ → architecture, setup, extra documentation
-
-data/ → datasets, logs, exported measurements
-
-tests/ → tests
-
-progress.md → weekly progress log
-
-milestones.md → milestone evidence map
-
-demo-evidence/ → screenshots, output snapshots, demo proof
-
-Required Workflow
+- Design an IoT cyber-physical system with sensing and actuation
+- Implement control logic for serving and blocking behavior
+- Estimate liquid usage and tank state over time
+- Develop event-driven alerts and notifications
+- Build a GUI for command triggering and status visualization
+- Apply reliability and fallback behavior in a real dispensing system
 
 
-Create an Issue before starting a task
-Work in a branch
-Commit regularly with meaningful messages
-Open a Pull Request
-Merge into main
-
-Update progress.md
-
-
-Deliverables to maintain
+## Repository Structure
+- `src/` → source code
+- `docs/` → architecture, setup, extra documentation
+- `data/` → datasets, logs, exported measurements
+- `tests/` → tests
+- `progress.md` → weekly progress log
+- `milestones.md` → milestone evidence map
+- `demo-evidence/` → screenshots, output snapshots, demo proof
 
 
-complete README.md
-
-weekly progress.md
-
-docs/architecture.md
-milestones.md
-demo evidence in demo-evidence/
 
 
-Current Status
+## Required Workflow
+1. Create an Issue before starting a task
+2. Work in a branch
+3. Commit regularly with meaningful messages
+4. Open a Pull Request
+5. Merge into `main`
+6. Update `progress.md`
 
-Update this section with a one-paragraph summary each week.
+
+## Deliverables to maintain
+- complete `README.md`
+- weekly `progress.md`
+- `docs/architecture.md`
+- `milestones.md`
+- demo evidence in `demo-evidence/`
+
+## Current Status
+We just got our hardware, the git repository got completed and we are mostly done with setting up the whole project. First serious
+(productive) commits should be comming by next week.
+
+
