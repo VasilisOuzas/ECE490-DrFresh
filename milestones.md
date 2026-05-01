@@ -10,5 +10,5 @@
 | 6 | Trend / state logic | | |
 | 7 | Alerts / automation | | |
 | 8 | Integration | | |
-| 9 | Testing / optimization | | |
+| 9 | Testing / optimization |[test](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/tests/tests.md) |underway |
 | 10 | Final demo-ready system | | |
