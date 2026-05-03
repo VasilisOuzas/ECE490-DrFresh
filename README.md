@@ -65,7 +65,7 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-We just got our hardware, the git repository got completed and we are mostly done with setting up the whole project. First serious
-(productive) commits should be comming by next week.
+Basic work on the raspberry is done. Repository is finally optimized and we've taken some steps on the actuanion/pump control part.
+More progress coming during next weekdays.
 
 
