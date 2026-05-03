@@ -1,0 +1,34 @@
+# this is the first version (simplified) of what we will potentially use on the GUI through webpage hosting
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pump Control</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; height: 100vh;
+           background: #111; color: white; gap: 20px; }
+    button { padding: 30px 60px; font-size: 24px; border: none;
+             border-radius: 12px; cursor: pointer; }
+    #on-btn  { background: #22c55e; color: white; }
+    #off-btn { background: #ef4444; color: white; }
+    #status  { font-size: 18px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <h1>Water Pump</h1>
+  <div id="status">Status: unknown</div>
+  <button id="on-btn"  onclick="control('on')">Turn ON</button>
+  <button id="off-btn" onclick="control('off')">Turn OFF</button>
+
+  <script>
+    function control(cmd) {
+      fetch('/pump/' + cmd)
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('status').textContent = 'Status: ' + data.status;
+        });
+    }
+  </script>
+</body>
+</html>
