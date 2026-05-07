@@ -26,15 +26,22 @@ Update this file every week.
 ### Completed
 - Optimization of repository and some overdue merges
 - Researched some topics on the communication layer and reconsidered our initial plans (nothing finilized yet)
-- Finilized our choice on liquid tanks 
+- Finilized our choice on liquid tanks
+- Finished MQTT and database part
+- made first [demo](https://github.com/VasilisOuzas/ECE490-DrFresh/tree/main/demo-evidence) 
 ### In Progress
 - Task Assignement
 - creation of a complete design for the actuation part
+- Logic Implementation
+- GUI
 ### Problems / Risks
 - Both members of the team were absent this weekend. Not a lot of work was done this weekend and we need to catch up.
+- Pumps are not working properly (They are spilling out the entire volume unintentionaly)
 ### Next Steps
 - Get some serius work done on the raspberry
-- Get tje first steps done on the logging/comunication with broker parts
+- Get the first steps done on the logging/comunication with broker parts
+- Manual dispensing
+- GUI and visualization
 ### Team Contribution
 - Ούζας Βασίλειος
 - Αλίνο Παπαγιάννης
