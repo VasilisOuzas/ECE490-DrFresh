@@ -21,6 +21,8 @@ GPIO.setup(PUMP_A_PIN, GPIO.OUT, initial=GPIO.HIGH)
 GPIO.setup(PUMP_B_PIN, GPIO.OUT, initial=GPIO.HIGH)
 
 def create_database():
+
+    conn = None
     try:
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
@@ -55,9 +57,11 @@ def create_database():
     except Exception as e:
         print(f"Error creating database: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 def store_command(command, status):
+    conn = None
     try:
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
@@ -67,9 +71,11 @@ def store_command(command, status):
     except Exception as e:
         print(f"Error storing command: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
         
 def store_alert(tank, alert):
+    conn = None
     try:
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
@@ -79,7 +85,8 @@ def store_alert(tank, alert):
     except Exception as e:
         print(f"Error storing alert: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
         
@@ -97,11 +104,9 @@ def auto_dispense(tank):
     GPIO.output(pump_pin, GPIO.HIGH)
     
     print(f"Finished auto dispensing from tank {tank}")
-    
-    pass
 
 def handle_command(command):
-    
+    conn = None
 
     try:
         tank = command.get("tank")
@@ -161,12 +166,14 @@ def handle_command(command):
     except Exception as e:
         print(f"Error handling command: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
                
 
         
                 
 def handle_refill(refill):
+    conn = None
     try:
         tank = refill.get("tank")
         volume = refill.get("volume")
@@ -189,7 +196,8 @@ def handle_refill(refill):
     except Exception as e:
         print(f"Error handling refill: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
         
         
 def on_connect(client, userdata, flags, rc):
