@@ -3,6 +3,7 @@ import json
 import time
 import RPi.GPIO as GPIO
 import sqlite3
+import random
 
 BROKER     = "localhost"
 PUMP_A_PIN = 17 
@@ -10,13 +11,11 @@ PUMP_B_PIN = 27
 TANK_MIN   = 0.1 
 TANK_MAX   = 1.5  
 FLOW_RATE  = 0.5
-AUTO_PUMP_A = False
-AUTO_PUMP_B = False
 MANUAL_TIMEOUT = 7
 DEFAULT_AMOUNT = 0.3
+client = None
 
-
-client_id = "water_tank_controller"
+client_id = f"client_{random.randint(0, 1000)}"
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(PUMP_A_PIN, GPIO.OUT, initial=GPIO.HIGH)
 GPIO.setup(PUMP_B_PIN, GPIO.OUT, initial=GPIO.HIGH)
@@ -85,17 +84,10 @@ def store_alert(tank, alert):
 
         
 def auto_dispense(tank):
-    global AUTO_PUMP_A
-    global AUTO_PUMP_B
     
     pump_pin = PUMP_A_PIN if tank == "A" else PUMP_B_PIN
     
     dispense_time = DEFAULT_AMOUNT / FLOW_RATE
-    
-    if tank == "A":
-        AUTO_PUMP_A = True
-    elif tank == "B":
-        AUTO_PUMP_B = True
     
     GPIO.output(pump_pin, GPIO.LOW)
     
@@ -104,44 +96,17 @@ def auto_dispense(tank):
     time.sleep(dispense_time)
     GPIO.output(pump_pin, GPIO.HIGH)
     
-    if tank == "A":
-        AUTO_PUMP_A = False
-    elif tank == "B":
-        AUTO_PUMP_B = False
-    
     print(f"Finished auto dispensing from tank {tank}")
     
     pass
 
 def handle_command(command):
     
-    global AUTO_PUMP_A
-    global AUTO_PUMP_B
 
     try:
         tank = command.get("tank")
         dispense_type = command.get("type")
         
-        if dispense_type == "auto" and tank == "A" and AUTO_PUMP_A:
-            print(f"Tank {tank} is already auto-dispensing. Ignoring command.")
-            publish_alert = {"tank": tank, "alert": "Tank is already auto-dispensing. Ignoring command."}
-            client.publish("drfresh/alert", json.dumps(publish_alert))
-            publish_command = {"tank": tank, "type": dispense_type, "amount": 0, "status": "failed"}
-            client.publish("drfresh/status", json.dumps(publish_command))
-            store_command(command, "failed")
-            store_alert(tank, "Tank is already auto-dispensing. Ignoring command.")
-            return
-
-        if dispense_type == "auto" and tank == "B" and AUTO_PUMP_B:
-            print(f"Tank {tank} is already auto-dispensing. Ignoring command.")
-            publish_alert = {"tank": tank, "alert": "Tank is already auto-dispensing. Ignoring command."}
-            client.publish("drfresh/alert", json.dumps(publish_alert))
-            publish_command = {"tank": tank, "type": dispense_type, "amount": 0, "status": "failed"}
-            client.publish("drfresh/status", json.dumps(publish_command))
-            store_command(command, "failed")
-            store_alert(tank, "Tank is already auto-dispensing. Ignoring command.")
-            return
-
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
         cursor.execute("SELECT volume FROM tanks WHERE name=?", (tank,))
@@ -167,6 +132,8 @@ def handle_command(command):
                 publish_alert = {"tank": tank, "alert": f"Tank is too low to dispense {DEFAULT_AMOUNT}L"}
                 client.publish("drfresh/alert", json.dumps(publish_alert))
                 store_command(command, "failed")
+                publish_command = {"tank": tank, "type": "auto", "amount": 0, "status": "failed"}
+                 client.publish("drfresh/status", json.dumps(publish_command))
                 store_alert(tank, f"Tank is too low to dispense {DEFAULT_AMOUNT}L")
                 return
             else:
@@ -243,8 +210,8 @@ def on_message(client, userdata, msg):
         print(f"Error processing message on {msg.topic}: {e}")
         
         
-def connect_mqtt():
-    client = mqtt.Client(client_id)
+def connect_mqtt_client() -> mqtt.Client:
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(BROKER, 1883)
@@ -253,8 +220,9 @@ def connect_mqtt():
 def main():
     global client
     create_database()
+    
     try:
-        client = connect_mqtt()
+        client = connect_mqtt_client()
         client.loop_forever()
     finally:
         GPIO.cleanup()
