@@ -133,7 +133,7 @@ def handle_command(command):
                 client.publish("drfresh/alert", json.dumps(publish_alert))
                 store_command(command, "failed")
                 publish_command = {"tank": tank, "type": "auto", "amount": 0, "status": "failed"}
-                 client.publish("drfresh/status", json.dumps(publish_command))
+                client.publish("drfresh/status", json.dumps(publish_command))
                 store_alert(tank, f"Tank is too low to dispense {DEFAULT_AMOUNT}L")
                 return
             else:
