@@ -65,7 +65,7 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-Basic work on the raspberry is done. Repository is finally optimized and we've taken some steps on the actuanion/pump control part.
-More progress coming during next weekdays.
+We've made remarkable progress. We've manage to set up and test some basic dispensing functions. We were able to use automatic dispensing with one pump. We also made our first steps in creating an MQTT connection and the SQL database.
+We are going to keep testing the pumps since we ran into problems with fluid dynamics and we are going to make our first steps using grafana for the GUI. There is also now video/photo evidene at the apropriate folder
 
 
