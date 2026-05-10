@@ -19,7 +19,7 @@ from drfresh_backend import (
     DEFAULT_AMOUNT,
 )
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder = ".")
 
 
 def get_db():
