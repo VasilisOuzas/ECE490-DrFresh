@@ -11,7 +11,6 @@ PUMP_B_PIN      = 27
 TANK_MIN        = 0.1
 TANK_MAX        = 1.5
 FLOW_RATE       = 0.03
-MANUAL_TIMEOUT  = 10
 DEFAULT_AMOUNT  = 0.3
 WATCHDOG_WINDOW = 0.75
 client          = None
@@ -115,12 +114,13 @@ def close_manual(tank):
         cursor = conn.cursor()
         cursor.execute("SELECT volume FROM tanks WHERE name=?", (tank,))
         current_volume = cursor.fetchone()[0]
-        new_volume = round(current_volume - amount, 3)
+        new_volume = max(round(current_volume - amount, 3), 0.0)
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
         store_command({"tank": tank, "type": "manual"}, "success", amount)
-        publish_command = {"tank": tank, "type": "manual", "amount": amount, "status": "success", "volume": new_volume}
+        publish_command = {"tank": tank, "type": "manual", "amount": amount, "status": "success"}
         safe_publish("drfresh/status", publish_command)
+        safe_publish("drfresh/volume", {"tank": tank, "volume": new_volume})
         print(f"Manual dispense closed for tank '{tank}'. Dispensed {amount}L. New volume: {new_volume}L")
         if new_volume < TANK_MIN:
             publish_alert = {"tank": tank, "alert": "Tank is low. Please refill soon."}
@@ -134,8 +134,17 @@ def close_manual(tank):
 
 def check_manual_watchdog():
     for tank in list(manual_state.keys()):
-        last_message = manual_state[tank]["last_message"]
-        if time.time() - last_message > WATCHDOG_WINDOW:
+        state = manual_state[tank]
+        elapsed = time.time() - state["start_time"]
+
+        if elapsed >= state["timeout"]:
+            print(f"Tank '{tank}' ran empty — closing pump")
+            store_alert(tank, "Tank ran empty during manual dispense.")
+            safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank ran empty during manual dispense."})
+            close_manual(tank)
+            continue
+
+        if time.time() - state["last_message"] > WATCHDOG_WINDOW:
             print(f"Watchdog closing tank '{tank}' — no message in {WATCHDOG_WINDOW}s")
             close_manual(tank)
 
@@ -186,8 +195,9 @@ def handle_command(command):
                 conn.commit()
                 store_command(command, "success", DEFAULT_AMOUNT)
                 print(f"Dispensed from '{tank}'. New volume: {new_volume}L")
-                publish_command = {"tank": tank, "type": "auto", "amount": DEFAULT_AMOUNT, "status": "success", "volume": new_volume}
+                publish_command = {"tank": tank, "type": "auto", "amount": DEFAULT_AMOUNT, "status": "success"}
                 safe_publish("drfresh/status", publish_command)
+                safe_publish("drfresh/volume", {"tank": tank, "volume": new_volume})
                 if new_volume < TANK_MIN:
                     print(f"Tank '{tank}' is low. Please refill soon.")
                     publish_alert = {"tank": tank, "alert": "Tank is low. Please refill soon."}
@@ -196,22 +206,16 @@ def handle_command(command):
 
         elif dispense_type == "manual":
             if tank in manual_state:
-                elapsed = time.time() - manual_state[tank]["start_time"]
-                if current_volume <= 0.001 or elapsed >= manual_state[tank]["timeout"]:
-                    close_manual(tank)
-                else:
-                    manual_state[tank]["last_message"] = time.time()
+                manual_state[tank]["last_message"] = time.time()
             else:
-                max_dispensable = MANUAL_TIMEOUT * FLOW_RATE
-                timeout = MANUAL_TIMEOUT if current_volume >= max_dispensable else current_volume / FLOW_RATE
                 pump_pin = PUMP_A_PIN if tank == "A" else PUMP_B_PIN
                 GPIO.output(pump_pin, GPIO.LOW)
                 manual_state[tank] = {
                     "start_time": time.time(),
                     "last_message": time.time(),
-                    "timeout": timeout
+                    "timeout": current_volume / FLOW_RATE
                 }
-                print(f"Manual dispense started for tank '{tank}', max timeout {round(timeout, 1)}s")
+                print(f"Manual dispense started for tank '{tank}', will run empty in {round(current_volume / FLOW_RATE, 1)}s")
 
     except Exception as e:
         print(f"Error handling command: {e}")
@@ -238,8 +242,9 @@ def handle_refill(refill):
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
         print(f"Refilled '{tank}' by {volume}L. New volume: {new_volume}L")
-        publish_command = {"tank": tank, "type": "refill", "amount": volume, "status": "success", "volume": round(new_volume, 3)}
+        publish_command = {"tank": tank, "type": "refill", "amount": volume, "status": "success"}
         safe_publish("drfresh/status", publish_command)
+        safe_publish("drfresh/volume", {"tank": tank, "volume": round(new_volume, 3)})
     except Exception as e:
         print(f"Error handling refill: {e}")
     finally:
@@ -251,6 +256,20 @@ def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected with result code {reason_code}")
     client.subscribe("drfresh/command")
     client.subscribe("drfresh/refill")
+
+    conn = None
+    try:
+        conn = sqlite3.connect('drfresh.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, volume FROM tanks")
+        for name, volume in cursor.fetchall():
+            client.publish("drfresh/volume", json.dumps({"tank": name, "volume": volume}))
+            print(f"Startup: Tank {name} = {volume}L")
+    except Exception as e:
+        print(f"Error publishing startup volumes: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 def on_message(client, userdata, msg):
     try:
