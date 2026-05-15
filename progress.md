@@ -51,7 +51,8 @@ Update this file every week.
 
 ## Week 3
 ### Completed
-
+Connected the sensors and devices used in our project and verified that they
+operate correctly.
 ### In Progress
 
 ### Problems / Risks
