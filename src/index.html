@@ -194,35 +194,100 @@ function syncDispatch(){
   }
 }
 
-function dispense(){
-  if(!tank||!mode)return;
-  const amt=getAmount();
-  if(vols[tank]<amt)return;
-  const btn=document.getElementById('dispatch');
-  btn.disabled=true;btn.className='dispatch';btn.textContent='Dispensing…';
-  setTimeout(()=>{
-    vols[tank]=parseFloat((vols[tank]-amt).toFixed(3));
-    renderTank('A');renderTank('B');
-    checkAlert();
-    if(!canDispense(tank)){
-      tank=null;mode=null;
-      document.getElementById('btn-auto').className='btn';
-      document.getElementById('btn-auto').disabled=true;
-      document.getElementById('btn-manual').className='btn';
-      document.getElementById('btn-manual').disabled=true;
-      document.getElementById('slider-wrap').style.display='none';
+async function dispense(){
+  if(!tank || !mode) return;
+
+  const amt = getAmount();
+  const btn = document.getElementById('dispatch');
+
+  btn.disabled = true;
+  btn.className = 'dispatch';
+  btn.textContent = 'Sending command...';
+
+  try {
+    const res = await fetch('/api/dispense', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tank: tank,
+        type: mode,
+        amount: amt
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.status !== 'success') {
+      showAlert(data.message || 'Dispense command failed.');
+      syncDispatch();
+      return;
     }
+
+    btn.textContent = 'Dispensing…';
+
+  } catch (err) {
+    showAlert('Could not contact backend.');
     syncDispatch();
-  },(amt/FLOW)*1000);
+  }
 }
 
-function refill(t){
-  vols[t]=MAX;
-  renderTank(t);
-  checkAlert();
-  document.getElementById('refill-wrap').style.display='none';
-  showAlert('');
+async function refill(t){
+  try {
+    const res = await fetch('/api/refill', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tank: t,
+        volume: MAX
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.status !== 'success') {
+      showAlert(data.message || 'Refill failed.');
+      return;
+    }
+
+    showAlert('');
+
+  } catch (err) {
+    showAlert('Could not contact backend.');
+  }
 }
 
-renderTank('A');renderTank('B');checkAlert();
+function connectStatusStream(){
+  const es = new EventSource('/api/stream');
+
+  es.onmessage = function(event){
+    const data = JSON.parse(event.data);
+
+    if (data.tanks) {
+      vols.A = data.tanks.A ?? vols.A;
+      vols.B = data.tanks.B ?? vols.B;
+
+      renderTank('A');
+      renderTank('B');
+      checkAlert();
+      syncDispatch();
+    }
+
+    if (data.alert) {
+      showAlert(data.alert);
+    }
+  };
+
+  es.onerror = function(){
+    showAlert('Lost connection with backend.');
+  };
+}
+
+renderTank('A');
+renderTank('B');
+checkAlert();
+connectStatusStream();
 </script>
