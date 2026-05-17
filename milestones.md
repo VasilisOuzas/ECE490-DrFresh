@@ -6,7 +6,7 @@
 | 2 | Initial sensing / input handling |[Script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/tree/main/src/script.py) | input handling done |
 | 3 | Communication layer | [Script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py)| MQTT done |
 | 4 | Data storage / logging | [Script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py) | SQLite done |
-| 5 | Basic analytics | | |
+| 5 | Basic analytics | [InfluxDB Link](192.168.1.198) | Grafana Done |
 | 6 | Trend / state logic | | |
 | 7 | Alerts / automation | [Script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py) | done |
 | 8 | Integration | | |
