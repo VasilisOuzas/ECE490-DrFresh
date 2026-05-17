@@ -65,7 +65,5 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-We've made remarkable progress. We've manage to set up and test some basic dispensing functions. We were able to use automatic dispensing with one pump. We also made our first steps in creating an MQTT connection and the SQL database.
-We are going to keep testing the pumps since we ran into problems with fluid dynamics and we are going to make our first steps using grafana for the GUI. There is also now video/photo evidene at the apropriate folder
-
+We've made remarkable progress. GUI/InfluxDB/Grafana are done. Some extra tests have been done and we need to only optimize and finilize our code/implementation with GUI being our biggest concern.
 
