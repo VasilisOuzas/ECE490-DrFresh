@@ -53,6 +53,26 @@ Update this file every week.
 ### Completed
 Connected the sensors and devices used in our project and verified that they
 operate correctly.
+Successfully used our first implementation of GUI (updates on /src/index.html and `/src/fresh_server.py`)
+Successfully set up and used InfluxDB (check new version of `/src/script.py`)
+Succesfully used InfluxDB for Grafana visualization
+### In Progress
+Finilization and optimization of GUI
+Official ginal version of the physical implementation with actual tanks 
+More testing and demo
+### Problems / Risks
+Our GUI implementation for the time being is using HTML, CSS, and JavaScript, hosted locally on the Raspberry Pi. There was a conflict in the team regarding the assignments obligations, wether we are forced or not to use MQTT protocol for the connection between front-end and back-end. We will take a closer look on the assignment instructions and come into contact with the Professor to find out if we can move on with our current implementation or ditch it for a new MQTT based version  
+### Next Steps
+Optimise every code and run more tests.
+Take a deeper dive into our Grafana-InfluxDB usage
+
+### Team Contribution
+- Ούζας Βασίλειος
+- Αλίνο Παπαγιάννης
+
+## Week 4
+### Completed
+
 ### In Progress
 
 ### Problems / Risks
