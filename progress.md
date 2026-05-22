@@ -72,7 +72,7 @@ Take a deeper dive into our Grafana-InfluxDB usage
 
 ## Week 4
 ### Completed
-
+Finished the dashboard for the data visualization.
 ### In Progress
 
 ### Problems / Risks
