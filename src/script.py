@@ -7,7 +7,15 @@ import uuid
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-BROKER          = "localhost"
+BROKER = "194.177.207.38"
+PORT = 1883
+MQTT_USERNAME = "team1"
+MQTT_PASSWORD = "team1!@#$"
+
+TEAM = "team1"
+ALERT_TOPIC = f"iot/{TEAM}/drfresh/alert"
+REFILL_TOPIC = f"iot/{TEAM}/drfresh/refill"
+
 PUMP_A_PIN      = 17
 PUMP_B_PIN      = 27
 TANK_MIN        = 0.1
@@ -219,23 +227,32 @@ def close_auto(tank):
         auto_state.pop(tank)
         pump_pin = PUMP_A_PIN if tank == "A" else PUMP_B_PIN
         GPIO.output(pump_pin, GPIO.HIGH)
+
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
         cursor.execute("SELECT volume FROM tanks WHERE name=?", (tank,))
         current_volume = cursor.fetchone()[0]
+
         new_volume = max(round(current_volume - DEFAULT_AMOUNT, 3), 0.0)
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
-        safe_publish("drfresh/status", {"tank": tank, "type": "auto", "amount": DEFAULT_AMOUNT, "status": "success"})
-        safe_publish("drfresh/volume", {"tank": tank, "volume": new_volume})
+
         print(f"Auto dispense complete for tank '{tank}'. Dispensed {DEFAULT_AMOUNT}L. New volume: {new_volume}L")
+
         influx_write_event(tank, "auto", DEFAULT_AMOUNT, "success")
         influx_write_volume(tank, new_volume)
+
+        #MQTT publishes on topic only when there is an alert or a refill, not on every dispense, to reduce noise. Analytics can be viewed in InfluxDB.
         if new_volume < TANK_MIN:
-            safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank is low. Please refill soon."})
+            safe_publish(ALERT_TOPIC, {
+                "tank": tank,
+                "alert": "Tank is low. Please refill soon."
+            })
             influx_write_alert(tank, "Tank is low. Please refill soon.")
             print(f"Tank '{tank}' is low. Please refill soon.")
+
         influx_update_analytics(tank)
+
     except Exception as e:
         print(f"Error closing auto dispense: {e}")
     finally:
@@ -248,25 +265,35 @@ def close_manual(tank):
         state = manual_state.pop(tank)
         pump_pin = PUMP_A_PIN if tank == "A" else PUMP_B_PIN
         GPIO.output(pump_pin, GPIO.HIGH)
+
         elapsed = time.time() - state["start_time"]
         amount = round(elapsed * FLOW_RATE, 3)
+
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
         cursor.execute("SELECT volume FROM tanks WHERE name=?", (tank,))
         current_volume = cursor.fetchone()[0]
+
         new_volume = max(round(current_volume - amount, 3), 0.0)
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
-        safe_publish("drfresh/status", {"tank": tank, "type": "manual", "amount": amount, "status": "success"})
-        safe_publish("drfresh/volume", {"tank": tank, "volume": new_volume})
+
         print(f"Manual dispense closed for tank '{tank}'. Dispensed {amount}L. New volume: {new_volume}L")
+
         influx_write_event(tank, "manual", amount, "success")
         influx_write_volume(tank, new_volume)
+
+        #MQTT publishes on topic only when there is an alert or a refill, not on every dispense, to reduce noise. Analytics can be viewed in InfluxDB.
         if new_volume < TANK_MIN:
-            safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank is low. Please refill soon."})
+            safe_publish(ALERT_TOPIC, {
+                "tank": tank,
+                "alert": "Tank is low. Please refill soon."
+            })
             influx_write_alert(tank, "Tank is low. Please refill soon.")
             print(f"Tank '{tank}' is low. Please refill soon.")
+
         influx_update_analytics(tank)
+
     except Exception as e:
         print(f"Error closing manual dispense: {e}")
     finally:
@@ -284,7 +311,10 @@ def check_watchdog():
         state = manual_state[tank]
         if time.time() - state["start_time"] >= state["timeout"]:
             print(f"Tank '{tank}' ran empty — closing pump")
-            safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank ran empty during manual dispense."})
+            safe_publish(ALERT_TOPIC, {
+                "tank": tank,
+                "alert": "Tank ran empty during manual dispense."
+            })
             influx_write_alert(tank, "Tank ran empty during manual dispense.")
             close_manual(tank)
             continue
@@ -309,8 +339,10 @@ def handle_command(command):
 
         if current_volume < 0.001:
             print(f"Tank '{tank}' is empty. Cannot dispense.")
-            safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank is empty. Cannot dispense."})
-            safe_publish("drfresh/status", {"tank": tank, "type": dispense_type, "amount": 0, "status": "failed"})
+            safe_publish(ALERT_TOPIC, {
+                "tank": tank,
+                "alert": "Tank is empty. Cannot dispense."
+            })
             influx_write_event(tank, dispense_type, 0, "failed")
             influx_write_alert(tank, "Tank is empty. Cannot dispense.")
             influx_update_analytics(tank)
@@ -319,16 +351,16 @@ def handle_command(command):
         if dispense_type == "auto":
             if tank in auto_state or tank in manual_state:
                 print(f"Tank '{tank}' is already dispensing. Ignoring auto command.")
-                safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank is already dispensing."})
-                safe_publish("drfresh/status", {"tank": tank, "type": "auto", "amount": 0, "status": "failed"})
                 influx_write_event(tank, "auto", 0, "failed")
                 influx_write_alert(tank, "Tank is already dispensing.")
                 influx_update_analytics(tank)
                 return
             if current_volume < DEFAULT_AMOUNT:
                 print(f"Tank '{tank}' is too low to dispense.")
-                safe_publish("drfresh/alert", {"tank": tank, "alert": f"Tank is too low to dispense {DEFAULT_AMOUNT}L"})
-                safe_publish("drfresh/status", {"tank": tank, "type": "auto", "amount": 0, "status": "failed"})
+                safe_publish(ALERT_TOPIC, {
+                    "tank": tank,
+                    "alert": f"Tank is too low to dispense {DEFAULT_AMOUNT}L"
+                })
                 influx_write_event(tank, "auto", 0, "failed")
                 influx_write_alert(tank, f"Tank is too low to dispense {DEFAULT_AMOUNT}L")
                 influx_update_analytics(tank)
@@ -347,8 +379,6 @@ def handle_command(command):
             else:
                 if tank in auto_state:
                     print(f"Tank '{tank}' is already dispensing. Ignoring manual command.")
-                    safe_publish("drfresh/alert", {"tank": tank, "alert": "Tank is already dispensing."})
-                    safe_publish("drfresh/status", {"tank": tank, "type": "manual", "amount": 0, "status": "failed"})
                     influx_write_event(tank, "manual", 0, "failed")
                     influx_write_alert(tank, "Tank is already dispensing.")
                     influx_update_analytics(tank)
@@ -387,8 +417,14 @@ def handle_refill(refill):
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
         print(f"Refilled '{tank}' by {volume}L. New volume: {new_volume}L")
-        safe_publish("drfresh/status", {"tank": tank, "type": "refill", "amount": volume, "status": "success"})
-        safe_publish("drfresh/volume", {"tank": tank, "volume": round(new_volume, 3)})
+        safe_publish(REFILL_TOPIC, {
+            "tank": tank,
+            "amount": volume,
+            "new_volume": round(new_volume, 3),
+            "status": "success"
+        }) 
+        #Publish refill event to MQTT for real-time updates. Analytics can be viewed in InfluxDB.
+        
         influx_write_event(tank, "refill", volume, "success")
         influx_write_volume(tank, new_volume)
         influx_update_analytics(tank)
@@ -400,8 +436,8 @@ def handle_refill(refill):
 
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected with result code {reason_code}")
-    client.subscribe("drfresh/command")
-    client.subscribe("drfresh/refill")
+    client.subscribe(f"iot/{TEAM}/drfresh/command")
+    client.subscribe(f"iot/{TEAM}/drfresh/refill")
 
 def on_message(client, userdata, msg):
     try:
@@ -417,10 +453,11 @@ def on_message(client, userdata, msg):
 
 def connect_mqtt_client() -> mqtt.Client:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
+    client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
     client.on_connect = on_connect
     client.on_message = on_message
     client.reconnect_delay_set(min_delay=1, max_delay=30)
-    client.connect(BROKER, 1883)
+    client.connect(BROKER, PORT)
     return client
 
 def main():
@@ -441,7 +478,6 @@ def main():
             cursor = conn.cursor()
             cursor.execute("SELECT name, volume FROM tanks")
             for name, volume in cursor.fetchall():
-                client.publish("drfresh/volume", json.dumps({"tank": name, "volume": volume}))
                 print(f"Startup: Tank {name} = {volume}L")
                 influx_write_volume(name, volume)
         except Exception as e:
