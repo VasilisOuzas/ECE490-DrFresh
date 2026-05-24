@@ -442,9 +442,9 @@ def on_connect(client, userdata, flags, reason_code, properties):
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
-        if msg.topic == "drfresh/command":
+        if msg.topic == f"iot/{TEAM}/drfresh/command":
             handle_command(payload)
-        elif msg.topic == "drfresh/refill":
+        elif msg.topic == f"iot/{TEAM}/drfresh/refill":
             handle_refill(payload)
     except json.JSONDecodeError as e:
         print(f"Invalid JSON on {msg.topic}: {e}")
