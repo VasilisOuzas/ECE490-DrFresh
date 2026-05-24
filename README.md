@@ -65,5 +65,7 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-We've made remarkable progress. GUI/InfluxDB/Grafana are done. Some extra tests have been done and we need to only optimize and finilize our code/implementation with GUI being our biggest concern.
+We are nearly done with the project. Grafana/InfluxDB are finished, script.py got some of its last improvements and GUI got a lot of visual/functional updates. 
+We also added MQTT communication between the PI and the public Broker of our university so that subscribers can see refill/alert events outside local network's reach. 
+Right now GUI is our #1 task and hopefully one of the last.
 
