@@ -72,9 +72,28 @@ Take a deeper dive into our Grafana-InfluxDB usage
 
 ## Week 4
 ### Completed
-Finished the dashboard for the data visualization.
+- Finished the dashboard for the data visualization.
+- Added NGSI-LD context broker integration via Orion-LD
+- Added MQTT communication with publicly shared University Broker so that we can forward refills and alerts outside of the local network's reach
+- Optimized GUI with more elements
+### In Progress
+- GUI manual dispensing impementation 
+### Problems / Risks
+- Due to some file misshandling, we lost all progress on the manual dispensing mechanism that was created last weekend, but ufortunately was never commited on the repository.
+### Next Steps
+- More tests
+- Manual dispensing mechanism
+- Final irl implementation
+- More demo footage
 
-Added NGSI-LD context broker integration via Orion-LD
+### Team Contribution
+- Ούζας Βασίλειος
+- Αλίνο Παπαγιάννης
+
+
+## Week 5
+### Completed
+
 ### In Progress
 
 ### Problems / Risks
