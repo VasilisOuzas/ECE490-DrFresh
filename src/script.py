@@ -4,6 +4,7 @@ import time
 import RPi.GPIO as GPIO
 import sqlite3
 import uuid
+import requests
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
@@ -13,7 +14,7 @@ MQTT_USERNAME = "team1"
 MQTT_PASSWORD = "team1!@#$"
 
 TEAM = "team1"
-ALERT_TOPIC = f"iot/{TEAM}/drfresh/alert"
+ALERT_TOPIC  = f"iot/{TEAM}/drfresh/alert"
 REFILL_TOPIC = f"iot/{TEAM}/drfresh/refill"
 
 PUMP_A_PIN      = 17
@@ -32,11 +33,89 @@ INFLUX_TOKEN  = "n8XW48pHdCUZ3Ox7Pmzi9ACKBPyKsaxJemdGElebSoYqMZBQgfHW6cpMWHTYrB8
 INFLUX_ORG    = "drfresh"
 INFLUX_BUCKET = "drfresh"
 
+ORION_URL = "http://194.177.207.38:1026"
+ENTITY_ID = f"urn:ngsi-ld:DrinkDispenser:{TEAM}"
+NGSI_HEADERS = {
+    "Content-Type": "application/json",
+    "Link": '<https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld>; rel="http://www.w3.org/ns/json-ld#context"; type="application/ld+json"'
+}
+
 client_id = f"drfresh_{uuid.uuid4().hex[:8]}"
 
 influx_client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 write_api     = influx_client.write_api(write_options=SYNCHRONOUS)
 query_api     = influx_client.query_api()
+
+
+def ngsi_create_entity(vol_a, vol_b):
+    url = f"{ORION_URL}/ngsi-ld/v1/entities"
+    payload = {
+        "id": ENTITY_ID,
+        "type": "DrinkDispenser",
+        "tankLevelA": {
+            "type": "Property",
+            "value": round(vol_a / TANK_MAX * 100, 1),
+            "unitCode": "P1"
+        },
+        "tankLevelB": {
+            "type": "Property",
+            "value": round(vol_b / TANK_MAX * 100, 1),
+            "unitCode": "P1"
+        },
+        "status": {
+            "type": "Property",
+            "value": "initialized"
+        },
+        "observedAt": {
+            "type": "Property",
+            "value": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        },
+        "@context": [
+            "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld"
+        ]
+    }
+    try:
+        res = requests.post(url, json=payload, headers=NGSI_HEADERS, timeout=3)
+        if res.status_code == 201:
+            print(f"Orion entity created: tankA={vol_a}L tankB={vol_b}L")
+        elif res.status_code == 409:
+            print("Orion entity already exists — updating instead")
+            ngsi_update_entity(vol_a, vol_b, "initialized")
+        else:
+            print(f"Orion create error: {res.status_code} {res.text}")
+    except Exception as e:
+        print(f"Orion create error: {e}")
+
+def ngsi_update_entity(vol_a, vol_b, status):
+    url = f"{ORION_URL}/ngsi-ld/v1/entities/{ENTITY_ID}/attrs"
+    payload = {
+        "tankLevelA": {
+            "type": "Property",
+            "value": round(vol_a / TANK_MAX * 100, 1),
+            "unitCode": "P1"
+        },
+        "tankLevelB": {
+            "type": "Property",
+            "value": round(vol_b / TANK_MAX * 100, 1),
+            "unitCode": "P1"
+        },
+        "status": {
+            "type": "Property",
+            "value": status
+        },
+        "observedAt": {
+            "type": "Property",
+            "value": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
+    }
+    try:
+        res = requests.patch(url, json=payload, headers=NGSI_HEADERS, timeout=3)
+        if res.status_code in (204, 200):
+            print(f"Orion updated: tankA={vol_a}L tankB={vol_b}L status={status}")
+        else:
+            print(f"Orion update error: {res.status_code} {res.text}")
+    except Exception as e:
+        print(f"Orion update error: {e}")
 
 def influx_write_event(tank, dispense_type, amount, status):
     """Write a dispense or refill event to InfluxDB."""
@@ -242,7 +321,6 @@ def close_auto(tank):
         influx_write_event(tank, "auto", DEFAULT_AMOUNT, "success")
         influx_write_volume(tank, new_volume)
 
-        #MQTT publishes on topic only when there is an alert or a refill, not on every dispense, to reduce noise. Analytics can be viewed in InfluxDB.
         if new_volume < TANK_MIN:
             safe_publish(ALERT_TOPIC, {
                 "tank": tank,
@@ -283,7 +361,6 @@ def close_manual(tank):
         influx_write_event(tank, "manual", amount, "success")
         influx_write_volume(tank, new_volume)
 
-        #MQTT publishes on topic only when there is an alert or a refill, not on every dispense, to reduce noise. Analytics can be viewed in InfluxDB.
         if new_volume < TANK_MIN:
             safe_publish(ALERT_TOPIC, {
                 "tank": tank,
@@ -390,7 +467,8 @@ def handle_command(command):
                     "last_message": time.time(),
                     "timeout":      current_volume / FLOW_RATE
                 }
-                print(f"Manual dispense started for tank '{tank}', "f"will run empty in {round(current_volume / FLOW_RATE, 1)}s")
+                print(f"Manual dispense started for tank '{tank}', "
+                      f"will run empty in {round(current_volume / FLOW_RATE, 1)}s")
 
     except Exception as e:
         print(f"Error handling command: {e}")
@@ -417,17 +495,22 @@ def handle_refill(refill):
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
         print(f"Refilled '{tank}' by {volume}L. New volume: {new_volume}L")
+
         safe_publish(REFILL_TOPIC, {
             "tank": tank,
             "amount": volume,
             "new_volume": round(new_volume, 3),
             "status": "success"
-        }) 
-        #Publish refill event to MQTT for real-time updates. Analytics can be viewed in InfluxDB.
-        
+        })
+
         influx_write_event(tank, "refill", volume, "success")
         influx_write_volume(tank, new_volume)
         influx_update_analytics(tank)
+
+        cursor.execute("SELECT name, volume FROM tanks")
+        vols = {name: vol for name, vol in cursor.fetchall()}
+        ngsi_update_entity(vols.get("A", 0.0), vols.get("B", 0.0), "refilled")
+
     except Exception as e:
         print(f"Error handling refill: {e}")
     finally:
@@ -477,11 +560,15 @@ def main():
             conn = sqlite3.connect('drfresh.db')
             cursor = conn.cursor()
             cursor.execute("SELECT name, volume FROM tanks")
-            for name, volume in cursor.fetchall():
+            volumes = {name: volume for name, volume in cursor.fetchall()}
+            for name, volume in volumes.items():
                 print(f"Startup: Tank {name} = {volume}L")
                 influx_write_volume(name, volume)
+            vol_a = volumes.get("A", 0.0)
+            vol_b = volumes.get("B", 0.0)
+            ngsi_create_entity(vol_a, vol_b)
         except Exception as e:
-            print(f"Error publishing startup volumes: {e}")
+            print(f"Error on startup: {e}")
         finally:
             if conn:
                 conn.close()
