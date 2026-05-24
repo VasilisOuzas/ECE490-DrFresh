@@ -73,6 +73,7 @@ Take a deeper dive into our Grafana-InfluxDB usage
 ## Week 4
 ### Completed
 Finished the dashboard for the data visualization.
+Added NGSI-LD context broker integration via Orion-LD
 ### In Progress
 
 ### Problems / Risks
