@@ -90,6 +90,18 @@
 .bottle-area.left{left:40px}
 .bottle-area.right{right:40px}
 
+
+.bottle{
+  width:90px;
+  height:300px;
+  border:3px solid var(--color-border-secondary);
+  border-radius:18px 18px 12px 12px;
+  position:relative;
+  overflow:hidden;
+  background:rgba(255,255,255,0.04);
+  box-shadow:0 8px 24px rgba(255,0,0,0.45);
+}
+
 .bottle-label{
   font-size:24px;
   font-family:'Nosifer', cursive;
@@ -117,14 +129,7 @@
 
   .bottle-area.right .bottle-fill{
     background:rgba(253, 160, 153, 0.85);
-  height:300px;
-  border:3px solid var(--color-border-secondary);
-  border-radius:18px 18px 12px 12px;
-  position:relative;
-  overflow:hidden;
-  background:rgba(255,255,255,0.04);
-  box-shadow:0 8px 24px rgba(255,0,0,0.45);
-}
+  }
 
 .bottle-fill{
   position:absolute;
@@ -199,7 +204,19 @@
     </div>
   </div>
 
-  <button class="dispatch" id="dispatch" disabled onclick="dispense()">Dispense</button>
+  <button
+  class="dispatch"
+  id="dispatch"
+  disabled
+  onclick="dispatchAction(event)"
+  onmousedown="manualPressStart()"
+  onmouseup="manualPressStop()"
+  onmouseleave="manualPressStop()"
+  ontouchstart="manualPressStart(event)"
+  ontouchend="manualPressStop(event)"
+>
+  Dispense
+</button>
 
   <div id="refill-wrap" style="display:none">
     <div class="lbl">Refill tank</div>
@@ -213,7 +230,7 @@
 <div class="repo-link"><a href="https://github.com/VasilisOuzas/ECE490-DrFresh" target="_blank" rel="noopener noreferrer">GitHub — ECE490-DrFresh</a></div>
 
 <script>
-const MAX=1.5,MIN=0.1,DEF=0.3,FLOW=0.5;
+const MAX=1.5,MIN=0.1,DEF=0.3,FLOW=0.03;
 let vols={A:MAX,B:MAX},tank=null,mode=null;
 
 function barColor(p){
@@ -269,19 +286,15 @@ function pickTank(t){
 }
 
 function pickMode(m){
-  mode=m;
-  document.getElementById('btn-auto').className='btn'+(m==='auto'?' sel':'');
-  document.getElementById('btn-manual').className='btn'+(m==='manual'?' sel':'');
-  document.getElementById('slider-wrap').style.display=m==='manual'?'block':'none';
-  if(m==='manual'){
-    const s=document.getElementById('slider');
-    s.max=vols[tank].toFixed(1);
-    if(parseFloat(s.value)>vols[tank])s.value=vols[tank].toFixed(1);
-    document.getElementById('slider-out').textContent=parseFloat(s.value).toFixed(1)+' L';
-  }
+  mode = m;
+
+  document.getElementById('btn-auto').className = 'btn' + (m === 'auto' ? ' sel' : '');
+  document.getElementById('btn-manual').className = 'btn' + (m === 'manual' ? ' sel' : '');
+
+  document.getElementById('slider-wrap').style.display = 'none';
+
   syncDispatch();
 }
-
 function onSlide(){
   const v=parseFloat(document.getElementById('slider').value);
   document.getElementById('slider-out').textContent=v.toFixed(1)+' L';
@@ -289,58 +302,128 @@ function onSlide(){
 }
 
 function getAmount(){
-  if(mode==='auto')return DEF;
-  return parseFloat(document.getElementById('slider').value);
+  if(mode === 'auto') return DEF;
+  return null;
 }
 
 function syncDispatch(){
-  const btn=document.getElementById('dispatch');
-  const ready=tank&&mode;
-  btn.disabled=!ready;
-  btn.className='dispatch'+(ready?' ready':'');
-  if(ready){
-    btn.textContent=`Dispense ${getAmount().toFixed(1)} L from Tank ${tank}`;
+  const btn = document.getElementById('dispatch');
+  const ready = tank && mode;
+
+  btn.disabled = !ready;
+  btn.className = 'dispatch' + (ready ? ' ready' : '');
+
+  if(!ready){
+    btn.textContent = 'Dispense';
+    return;
+  }
+
+  if(mode === 'auto'){
+    btn.textContent = `Dispense ${DEF.toFixed(1)} L from Tank ${tank}`;
   } else {
-    btn.textContent='Dispense';
+    btn.textContent = `Hold the Button to dispense from Tank ${tank}`;
   }
 }
 
-async function dispense(){
-  if(!tank || !mode) return;
+let manualActive = false;
+let manualTimer = null;
+let manualStartTime = null;
 
-  const amt = getAmount();
+async function sendDispenseCommand(payload){
+  const res = await fetch('/api/dispense', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json();
+
+  if(!res.ok || data.status !== 'success'){
+    throw new Error(data.message || 'Dispense command failed.');
+  }
+
+  return data;
+}
+
+async function autoDispense(){
+  if(!tank || mode !== 'auto') return;
+
   const btn = document.getElementById('dispatch');
 
   btn.disabled = true;
   btn.className = 'dispatch';
-  btn.textContent = 'Sending command...';
+  btn.textContent = 'Dispensing…';
 
   try {
-    const res = await fetch('/api/dispense', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        tank: tank,
-        type: mode,
-        amount: amt
-      })
+    await sendDispenseCommand({
+      tank: tank,
+      type: 'auto'
     });
+  } catch(err) {
+    showAlert(err.message || 'Could not contact backend.');
+  }
 
-    const data = await res.json();
+  syncDispatch();
+}
 
-    if (!res.ok || data.status !== 'success') {
-      showAlert(data.message || 'Dispense command failed.');
-      syncDispatch();
-      return;
-    }
+function manualPressStart(event){
+  if(event) event.preventDefault();
 
-    btn.textContent = 'Dispensing…';
+  if(!tank || mode !== 'manual') return;
+  if(manualActive) return;
 
-  } catch (err) {
-    showAlert('Could not contact backend.');
+  manualActive = true;
+  manualStartTime = Date.now();
+
+  const btn = document.getElementById('dispatch');
+  btn.disabled = false;
+  btn.className = 'dispatch ready';
+  btn.textContent = `Manual dispensing from Tank ${tank}…`;
+
+  sendManualPulse();
+
+  manualTimer = setInterval(sendManualPulse, 250);
+}
+
+function manualPressStop(event){
+  if(event) event.preventDefault();
+
+  if(!manualActive) return;
+
+  manualActive = false;
+
+  if(manualTimer !== null){
+    clearInterval(manualTimer);
+    manualTimer = null;
+  }
+
+  const elapsed = (Date.now() - manualStartTime) / 1000;
+  manualStartTime = null;
+
+  const estimatedAmount = elapsed * FLOW;
+
+  const btn = document.getElementById('dispatch');
+  btn.textContent = `Dispensed about ${estimatedAmount.toFixed(2)} L`;
+  btn.className = 'dispatch';
+
+  setTimeout(() => {
     syncDispatch();
+  }, 700);
+}
+
+async function sendManualPulse(){
+  if(!manualActive || !tank || mode !== 'manual') return;
+
+  try {
+    await sendDispenseCommand({
+      tank: tank,
+      type: 'manual'
+    });
+  } catch(err) {
+    manualPressStop();
+    showAlert(err.message || 'Manual dispense failed.');
   }
 }
 
