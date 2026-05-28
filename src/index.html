@@ -1,4 +1,4 @@
-<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nosifer&display=swap" rel="stylesheet">
 
@@ -234,12 +234,15 @@ const MAX=1.5,MIN=0.1,DEF=0.3,FLOW=0.03;
 let vols={A:MAX,B:MAX},tank=null,mode=null;
 
 function barColor(p){
-  if(p>0.25)return'var(--color-text-success)';
-  if(p>0.1)return'var(--color-text-warning)';
-  return'var(--color-text-danger)';
+  if(p > 0.25) return '#27F5B4';
+  if(p > 0.1) return '#F5C542';
+  return '#F52727';
+}
 }
 
-function canDispense(t){return vols[t]>=DEF}
+function canDispense(t){
+  return vols[t] > 0;
+}
 
 function renderTank(t){
   const p = Math.max(0, Math.min(1, vols[t] / MAX));

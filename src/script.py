@@ -14,8 +14,10 @@ MQTT_USERNAME = "team1"
 MQTT_PASSWORD = "team1!@#$"
 
 TEAM = "team1"
-ALERT_TOPIC  = f"iot/{TEAM}/drfresh/alert"
-REFILL_TOPIC = f"iot/{TEAM}/drfresh/refill"
+COMMAND_TOPIC = f"iot/{TEAM}/drfresh/command"
+REFILL_COMMAND_TOPIC = f"iot/{TEAM}/drfresh/refill_command"
+ALERT_TOPIC = f"iot/{TEAM}/drfresh/alert"
+REFILL_EVENT_TOPIC = f"iot/{TEAM}/drfresh/refill_event"
 
 PUMP_A_PIN      = 17
 PUMP_B_PIN      = 27
@@ -481,22 +483,38 @@ def handle_refill(refill):
     try:
         tank = refill.get("tank")
         volume = refill.get("volume")
+        if volume is None:
+            volume = TANK_MAX
+        
+        volume = float(volume)
+
+        if tank not in ("A", "B"):
+            print(f"Invalid refill tank: {tank}")
+            return
+
+        if volume is None:
+            volume = TANK_MAX
+
+        volume = float(volume)
 
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
         cursor.execute("SELECT volume FROM tanks WHERE name=?", (tank,))
         result = cursor.fetchone()
+
         if not result:
             print(f"Tank '{tank}' not found in database.")
             return
-        current_volume = result[0]
 
+        current_volume = result[0]
         new_volume = min(current_volume + volume, TANK_MAX)
+
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
+
         print(f"Refilled '{tank}' by {volume}L. New volume: {new_volume}L")
 
-        safe_publish(REFILL_TOPIC, {
+        safe_publish(REFILL_EVENT_TOPIC, {
             "tank": tank,
             "amount": volume,
             "new_volume": round(new_volume, 3),
@@ -519,16 +537,19 @@ def handle_refill(refill):
 
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected with result code {reason_code}")
-    client.subscribe(f"iot/{TEAM}/drfresh/command")
-    client.subscribe(f"iot/{TEAM}/drfresh/refill")
+    client.subscribe(COMMAND_TOPIC)
+    client.subscribe(REFILL_COMMAND_TOPIC)
 
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
-        if msg.topic == f"iot/{TEAM}/drfresh/command":
+
+        if msg.topic == COMMAND_TOPIC:
             handle_command(payload)
-        elif msg.topic == f"iot/{TEAM}/drfresh/refill":
+
+        elif msg.topic == REFILL_COMMAND_TOPIC:
             handle_refill(payload)
+
     except json.JSONDecodeError as e:
         print(f"Invalid JSON on {msg.topic}: {e}")
     except Exception as e:
