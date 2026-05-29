@@ -284,11 +284,23 @@ function checkAlert(){
 
 function pickTank(t){
   if(!canDispense(t))return;
+
   tank=t;
-  renderTank('A');renderTank('B');
-  document.getElementById('btn-auto').disabled=false;
-  document.getElementById('btn-manual').disabled=false;
+
+  renderTank('A');
+  renderTank('B');
+
+  document.getElementById('btn-manual').disabled = !canDispense(t);
+  document.getElementById('btn-auto').disabled = !canDispense(t) || needsRefill(t);
+  
+  if(mode === 'auto' && !autoAllowed){
+    mode = null;
+    document.getElementById('btn-auto').className = 'btn';
+    document.getElementById('btn-manual').className = 'btn';  // checking if we can use manual when the volume is lower than the default
+  }
+
   syncDispatch();
+
 }
 
 function pickMode(m){
@@ -314,13 +326,28 @@ function getAmount(){
 
 function syncDispatch(){
   const btn = document.getElementById('dispatch');
-  const ready = tank && mode;
+
+  const ready =
+    tank &&
+    mode &&
+    canDispense(tank) &&
+    !(mode === 'auto' && needsRefill(tank));
 
   btn.disabled = !ready;
   btn.className = 'dispatch' + (ready ? ' ready' : '');
 
-  if(!ready){
-    btn.textContent = 'Dispense';
+  if(!tank){
+    btn.textContent = 'Select Tank';
+    return;
+  }
+
+  if(!mode){
+    btn.textContent = 'Select Mode';
+    return;
+  }
+
+  if(mode === 'auto' && needsRefill(tank)){
+    btn.textContent = `Auto disabled below ${DEF.toFixed(1)} L`;
     return;
   }
 
@@ -362,6 +389,11 @@ function dispatchAction(event){
 }
 
 async function autoDispense(){
+  if(needsRefill(tank)){
+  showAlert(`Tank ${tank} is below ${DEF}L. Auto dispensing is disabled.`);   //Disabling auto dispense button when volume is lower than the default
+  return;
+  }
+
   if(!tank || mode !== 'auto') return;
 
   const btn = document.getElementById('dispatch');
@@ -386,6 +418,7 @@ function manualPressStart(event){
   if(event) event.preventDefault();
 
   if(!tank || mode !== 'manual') return;
+  if(!canDispense(tank)) return;
   if(manualActive) return;
 
   manualActive = true;
