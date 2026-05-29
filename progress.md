@@ -93,6 +93,24 @@ Take a deeper dive into our Grafana-InfluxDB usage
 
 ## Week 5
 ### Completed
+- Fixed manual despensing mode that was previously broken
+- Made some visual changes on the GUI that were proposed from the professor
+- Added buzzer for warning when a refill is needed and introduced new lines of code in [script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py) accordingly
+### In Progress
+
+### Problems / Risks
+- Our main code files feel too big and kinda bloated. We should take some action regarding that and defnitelly add more comments
+### Next Steps
+- Optimization of GUI
+- More Tests
+- Add stuff in `/data`
+### Team Contribution
+- Ούζας Βασίλειος
+- Αλίνο Παπαγιάννης
+
+
+## Week 6
+### Completed
 
 ### In Progress
 
