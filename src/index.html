@@ -200,14 +200,14 @@
     </div>
   </div>
 
-  <button
+<button
   class="dispatch"
   id="dispatch"
   disabled
   onclick="dispatchAction(event)"
-  onmousedown="manualPressStart()"
-  onmouseup="manualPressStop()"
-  onmouseleave="manualPressStop()"
+  onmousedown="manualPressStart(event)"
+  onmouseup="manualPressStop(event)"
+  onmouseleave="manualPressStop(event)"
   ontouchstart="manualPressStart(event)"
   ontouchend="manualPressStop(event)"
 >
@@ -235,21 +235,23 @@ function barColor(p){
   return '#F52727';
 }
 
-
-function canDispense(t){
+function canDispense(t){    // This function is used in manual mode
   return vols[t] > 0;
 }
 
-function renderTank(t){
-  const p = Math.max(0, Math.min(1, vols[t] / MAX));
+function needsRefill(t){    // This function is used in auto mode
+  return vols[t] <= DEF;
+}
 
+function renderTank(t){
   const bar = document.getElementById('bar-' + t);
   const meta = document.getElementById('meta-' + t);
   const btn = document.getElementById('btn-' + t);
   const bottleFill = document.getElementById('bottle-fill-' + t);
+  const fillPercent = Math.max(0, Math.min(1, vols[t] / MAX));
 
-  bottleFill.style.height = (p * 100).toFixed(1) + '%';
-  bottleFill.style.background = barColor(p);
+  bottleFill.style.height = (fillPercent * 100).toFixed(1) + '%';    //this line is responsible for giving an acurrate index of the botttle's liquid volume 
+  bottleFill.style.background = barColor(vols[t]);
 
   meta.textContent = vols[t].toFixed(2) + ' L';
 
@@ -264,12 +266,20 @@ function showAlert(msg){
 }
 
 function checkAlert(){
-  const aOk=canDispense('A'),bOk=canDispense('B');
-  if(!aOk&&!bOk){showAlert('Both tanks are empty or too low. Please refill before dispensing.');return;}
-  if(!aOk)showAlert('Tank A is too low to dispense. Refill or use Tank B.');
-  else if(!bOk)showAlert('Tank B is too low to dispense. Refill or use Tank A.');
-  else showAlert('');
-  document.getElementById('refill-wrap').style.display=(!aOk||!bOk)?'block':'none';
+  const aLow = needsRefill('A');
+  const bLow = needsRefill('B');
+
+  if(aLow && bLow){
+    showAlert('Both tanks are low. Please refill before dispensing.');
+  } else if(aLow){
+    showAlert('Tank A is low. Refill or use Tank B.');
+  } else if(bLow){
+    showAlert('Tank B is low. Refill or use Tank A.');
+  } else {
+    showAlert('');
+  }
+
+  document.getElementById('refill-wrap').style.display = (aLow || bLow) ? 'block' : 'none';
 }
 
 function pickTank(t){
@@ -341,6 +351,14 @@ async function sendDispenseCommand(payload){
   }
 
   return data;
+}
+
+function dispatchAction(event){
+  if(event) event.preventDefault();
+
+  if(mode === 'auto'){
+    autoDispense();
+  }
 }
 
 async function autoDispense(){
