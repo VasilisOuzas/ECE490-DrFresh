@@ -4,6 +4,7 @@ import time
 import RPi.GPIO as GPIO
 import sqlite3
 import uuid
+import threading
 import requests
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -19,7 +20,8 @@ REFILL_TOPIC = f"iot/{TEAM}/drfresh/refill"
 
 PUMP_A_PIN      = 17
 PUMP_B_PIN      = 27
-TANK_MIN        = 0.1
+BUZZER_PIN      = 22
+TANK_MIN        = 0.9
 TANK_MAX        = 1.5
 FLOW_RATE       = 0.03
 DEFAULT_AMOUNT  = 0.3
@@ -66,13 +68,6 @@ def ngsi_create_entity(vol_a, vol_b):
             "type": "Property",
             "value": "initialized"
         },
-        "observedAt": {
-            "type": "Property",
-            "value": time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        },
-        "@context": [
-            "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld"
-        ]
     }
     try:
         res = requests.post(url, json=payload, headers=NGSI_HEADERS, timeout=3)
@@ -103,10 +98,6 @@ def ngsi_update_entity(vol_a, vol_b, status):
             "type": "Property",
             "value": status
         },
-        "observedAt": {
-            "type": "Property",
-            "value": time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        }
     }
     try:
         res = requests.patch(url, json=payload, headers=NGSI_HEADERS, timeout=3)
@@ -300,6 +291,16 @@ def safe_publish(topic, payload):
     else:
         print(f"MQTT client not ready, could not publish to {topic}")
 
+def buzz():
+    try:
+        print("Buzzer starting")
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        print("Buzzer complete")
+    except Exception as e:
+        print(f"Buzzer error: {e}")
+
 def close_auto(tank):
     conn = None
     try:
@@ -328,6 +329,7 @@ def close_auto(tank):
             })
             influx_write_alert(tank, "Tank is low. Please refill soon.")
             print(f"Tank '{tank}' is low. Please refill soon.")
+            threading.Thread(target=buzz, daemon=True).start()
 
         influx_update_analytics(tank)
 
@@ -368,6 +370,7 @@ def close_manual(tank):
             })
             influx_write_alert(tank, "Tank is low. Please refill soon.")
             print(f"Tank '{tank}' is low. Please refill soon.")
+            threading.Thread(target=buzz, daemon=True).start()
 
         influx_update_analytics(tank)
 
@@ -549,6 +552,7 @@ def main():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(PUMP_A_PIN, GPIO.OUT, initial=GPIO.HIGH)
     GPIO.setup(PUMP_B_PIN, GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(BUZZER_PIN, GPIO.OUT, initial=GPIO.LOW)
     create_database()
     try:
         client = connect_mqtt_client()
