@@ -4,6 +4,7 @@ import time
 import RPi.GPIO as GPIO
 import sqlite3
 import uuid
+import threading
 import requests
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -14,14 +15,13 @@ MQTT_USERNAME = "team1"
 MQTT_PASSWORD = "team1!@#$"
 
 TEAM = "team1"
-COMMAND_TOPIC = f"iot/{TEAM}/drfresh/command"
-REFILL_COMMAND_TOPIC = f"iot/{TEAM}/drfresh/refill_command"
-ALERT_TOPIC = f"iot/{TEAM}/drfresh/alert"
-REFILL_EVENT_TOPIC = f"iot/{TEAM}/drfresh/refill_event"
+ALERT_TOPIC  = f"iot/{TEAM}/drfresh/alert"
+REFILL_TOPIC = f"iot/{TEAM}/drfresh/refill"
 
 PUMP_A_PIN      = 17
 PUMP_B_PIN      = 27
-TANK_MIN        = 0.1
+BUZZER_PIN      = 22
+TANK_MIN        = 0.9
 TANK_MAX        = 1.5
 FLOW_RATE       = 0.03
 DEFAULT_AMOUNT  = 0.3
@@ -68,13 +68,6 @@ def ngsi_create_entity(vol_a, vol_b):
             "type": "Property",
             "value": "initialized"
         },
-        "observedAt": {
-            "type": "Property",
-            "value": time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        },
-        "@context": [
-            "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld"
-        ]
     }
     try:
         res = requests.post(url, json=payload, headers=NGSI_HEADERS, timeout=3)
@@ -105,10 +98,6 @@ def ngsi_update_entity(vol_a, vol_b, status):
             "type": "Property",
             "value": status
         },
-        "observedAt": {
-            "type": "Property",
-            "value": time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        }
     }
     try:
         res = requests.patch(url, json=payload, headers=NGSI_HEADERS, timeout=3)
@@ -302,6 +291,16 @@ def safe_publish(topic, payload):
     else:
         print(f"MQTT client not ready, could not publish to {topic}")
 
+def buzz():
+    try:
+        print("Buzzer starting")
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        time.sleep(2)
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        print("Buzzer complete")
+    except Exception as e:
+        print(f"Buzzer error: {e}")
+
 def close_auto(tank):
     conn = None
     try:
@@ -330,6 +329,7 @@ def close_auto(tank):
             })
             influx_write_alert(tank, "Tank is low. Please refill soon.")
             print(f"Tank '{tank}' is low. Please refill soon.")
+            threading.Thread(target=buzz, daemon=True).start()
 
         influx_update_analytics(tank)
 
@@ -370,6 +370,7 @@ def close_manual(tank):
             })
             influx_write_alert(tank, "Tank is low. Please refill soon.")
             print(f"Tank '{tank}' is low. Please refill soon.")
+            threading.Thread(target=buzz, daemon=True).start()
 
         influx_update_analytics(tank)
 
@@ -483,38 +484,22 @@ def handle_refill(refill):
     try:
         tank = refill.get("tank")
         volume = refill.get("volume")
-        if volume is None:
-            volume = TANK_MAX
-        
-        volume = float(volume)
-
-        if tank not in ("A", "B"):
-            print(f"Invalid refill tank: {tank}")
-            return
-
-        if volume is None:
-            volume = TANK_MAX
-
-        volume = float(volume)
 
         conn = sqlite3.connect('drfresh.db')
         cursor = conn.cursor()
         cursor.execute("SELECT volume FROM tanks WHERE name=?", (tank,))
         result = cursor.fetchone()
-
         if not result:
             print(f"Tank '{tank}' not found in database.")
             return
-
         current_volume = result[0]
-        new_volume = min(current_volume + volume, TANK_MAX)
 
+        new_volume = min(current_volume + volume, TANK_MAX)
         cursor.execute("UPDATE tanks SET volume=? WHERE name=?", (new_volume, tank))
         conn.commit()
-
         print(f"Refilled '{tank}' by {volume}L. New volume: {new_volume}L")
 
-        safe_publish(REFILL_EVENT_TOPIC, {
+        safe_publish(REFILL_TOPIC, {
             "tank": tank,
             "amount": volume,
             "new_volume": round(new_volume, 3),
@@ -537,19 +522,16 @@ def handle_refill(refill):
 
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected with result code {reason_code}")
-    client.subscribe(COMMAND_TOPIC)
-    client.subscribe(REFILL_COMMAND_TOPIC)
+    client.subscribe(f"iot/{TEAM}/drfresh/command")
+    client.subscribe(f"iot/{TEAM}/drfresh/refill")
 
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
-
-        if msg.topic == COMMAND_TOPIC:
+        if msg.topic == f"iot/{TEAM}/drfresh/command":
             handle_command(payload)
-
-        elif msg.topic == REFILL_COMMAND_TOPIC:
+        elif msg.topic == f"iot/{TEAM}/drfresh/refill":
             handle_refill(payload)
-
     except json.JSONDecodeError as e:
         print(f"Invalid JSON on {msg.topic}: {e}")
     except Exception as e:
@@ -570,6 +552,7 @@ def main():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(PUMP_A_PIN, GPIO.OUT, initial=GPIO.HIGH)
     GPIO.setup(PUMP_B_PIN, GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(BUZZER_PIN, GPIO.OUT, initial=GPIO.LOW)
     create_database()
     try:
         client = connect_mqtt_client()
