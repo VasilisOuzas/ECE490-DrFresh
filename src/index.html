@@ -33,8 +33,6 @@
     cursor:not-allowed;
   }
   .tank-meta{font-size:26px;color:var(--color-text-secondary);margin-top:5px}
-  .bar-wrap{height:4px;background:var(--color-border-tertiary);border-radius:2px;margin-top:6px;overflow:hidden}
-  .bar{height:100%;border-radius:2px;transition:width 0.4s}
   .dispatch{
     width:100%;padding:20px 24px;border-radius:calc(var(--border-radius-md) + 4px);
     border:1px solid var(--color-border-secondary);
@@ -108,11 +106,11 @@
 }
 
 .bottle-area.left .bottle-label{
-  color:#D3F527;
+  color:#FF0000;
 }
 
   .bottle-area.left .bottle{
-    border-color:#D3F527;
+    border-color:#1100ff;
   }
 
   .bottle-area.left .bottle-fill{
@@ -120,11 +118,11 @@
   }
 
   .bottle-area.right .bottle-label{
-    color:#27F5B4;
+    color:#FF0000;
   }
 
   .bottle-area.right .bottle{
-    border-color:#27F5B4;
+    border-color:#1100ff;
   }
 
   .bottle-area.right .bottle-fill{
@@ -157,6 +155,8 @@
   <div class="bottle">
     <div class="bottle-fill" id="bottle-fill-A"></div>
   </div>
+
+  <div class="tank-meta" id="meta-A">1.5 L</div>  
 </div>
 
 <div class="bottle-area right">
@@ -165,6 +165,8 @@
   <div class="bottle">
     <div class="bottle-fill" id="bottle-fill-B"></div>
   </div>
+
+  <div class="tank-meta" id="meta-B">1.5 L</div>
 </div>
 
 <div class="wrap">
@@ -180,13 +182,9 @@
   <div class="row" id="tank-row">
     <div>
       <button class="btn" id="btn-A" onclick="pickTank('A')">Tank A</button>
-      <div class="bar-wrap"><div class="bar" id="bar-A" style="width:100%;background:var(--color-text-success)"></div></div>
-      <div class="tank-meta" id="meta-A">1.5 L</div>
     </div>
     <div>
       <button class="btn" id="btn-B" onclick="pickTank('B')">Tank B</button>
-      <div class="bar-wrap"><div class="bar" id="bar-B" style="width:100%;background:var(--color-text-success)"></div></div>
-      <div class="tank-meta" id="meta-B">1.5 L</div>
     </div>
   </div>
 
@@ -204,14 +202,14 @@
     </div>
   </div>
 
-  <button
+<button
   class="dispatch"
   id="dispatch"
   disabled
   onclick="dispatchAction(event)"
-  onmousedown="manualPressStart()"
-  onmouseup="manualPressStop()"
-  onmouseleave="manualPressStop()"
+  onmousedown="manualPressStart(event)"
+  onmouseup="manualPressStop(event)"
+  onmouseleave="manualPressStop(event)"
   ontouchstart="manualPressStart(event)"
   ontouchend="manualPressStop(event)"
 >
@@ -234,26 +232,28 @@ const MAX=1.5,MIN=0.1,DEF=0.3,FLOW=0.03;
 let vols={A:MAX,B:MAX},tank=null,mode=null;
 
 function barColor(p){
-  if(p>0.25)return '#27F5B4';
-  if(p>0.1)return '#F5C542';
+  if(p > 0.7) return '#1100ff';
+  if(p > 0.3) return '#F5C542';
   return '#F52727';
 }
 
-function canDispense(t){return vols[t]>=DEF}
+function canDispense(t){    // This function is used in manual mode
+  return vols[t] > 0;
+}
+
+function needsRefill(t){    // This function is used in auto mode
+  return vols[t] <= DEF;
+}
 
 function renderTank(t){
-  const p = Math.max(0, Math.min(1, vols[t] / MAX));
-
   const bar = document.getElementById('bar-' + t);
   const meta = document.getElementById('meta-' + t);
   const btn = document.getElementById('btn-' + t);
   const bottleFill = document.getElementById('bottle-fill-' + t);
+  const fillPercent = Math.max(0, Math.min(1, vols[t] / MAX));
 
-  bar.style.width = (p * 100).toFixed(1) + '%';
-  bar.style.background = barColor(p);
-
-  bottleFill.style.height = (p * 100).toFixed(1) + '%';
-  bottleFill.style.background = barColor(p);
+  bottleFill.style.height = (fillPercent * 100).toFixed(1) + '%';    //this line is responsible for giving an acurrate index of the botttle's liquid volume 
+  bottleFill.style.background = barColor(vols[t]);
 
   meta.textContent = vols[t].toFixed(2) + ' L';
 
@@ -268,21 +268,41 @@ function showAlert(msg){
 }
 
 function checkAlert(){
-  const aOk=canDispense('A'),bOk=canDispense('B');
-  if(!aOk&&!bOk){showAlert('Both tanks are empty or too low. Please refill before dispensing.');return;}
-  if(!aOk)showAlert('Tank A is too low to dispense. Refill or use Tank B.');
-  else if(!bOk)showAlert('Tank B is too low to dispense. Refill or use Tank A.');
-  else showAlert('');
-  document.getElementById('refill-wrap').style.display=(!aOk||!bOk)?'block':'none';
+  const aLow = needsRefill('A');
+  const bLow = needsRefill('B');
+
+  if(aLow && bLow){
+    showAlert('Both tanks are low. Please refill before dispensing.');
+  } else if(aLow){
+    showAlert('Tank A is low. Refill or use Tank B.');
+  } else if(bLow){
+    showAlert('Tank B is low. Refill or use Tank A.');
+  } else {
+    showAlert('');
+  }
+
+  document.getElementById('refill-wrap').style.display = (aLow || bLow) ? 'block' : 'none';
 }
 
 function pickTank(t){
   if(!canDispense(t))return;
+
   tank=t;
-  renderTank('A');renderTank('B');
-  document.getElementById('btn-auto').disabled=false;
-  document.getElementById('btn-manual').disabled=false;
+
+  renderTank('A');
+  renderTank('B');
+
+  document.getElementById('btn-manual').disabled = !canDispense(t);
+  document.getElementById('btn-auto').disabled = !canDispense(t) || needsRefill(t);
+  
+  if(mode === 'auto' && !autoAllowed){
+    mode = null;
+    document.getElementById('btn-auto').className = 'btn';
+    document.getElementById('btn-manual').className = 'btn';  // checking if we can use manual when the volume is lower than the default
+  }
+
   syncDispatch();
+
 }
 
 function pickMode(m){
@@ -308,13 +328,28 @@ function getAmount(){
 
 function syncDispatch(){
   const btn = document.getElementById('dispatch');
-  const ready = tank && mode;
+
+  const ready =
+    tank &&
+    mode &&
+    canDispense(tank) &&
+    !(mode === 'auto' && needsRefill(tank));
 
   btn.disabled = !ready;
   btn.className = 'dispatch' + (ready ? ' ready' : '');
 
-  if(!ready){
-    btn.textContent = 'Dispense';
+  if(!tank){
+    btn.textContent = 'Select Tank';
+    return;
+  }
+
+  if(!mode){
+    btn.textContent = 'Select Mode';
+    return;
+  }
+
+  if(mode === 'auto' && needsRefill(tank)){
+    btn.textContent = `Auto disabled below ${DEF.toFixed(1)} L`;
     return;
   }
 
@@ -347,7 +382,20 @@ async function sendDispenseCommand(payload){
   return data;
 }
 
+function dispatchAction(event){
+  if(event) event.preventDefault();
+
+  if(mode === 'auto'){
+    autoDispense();
+  }
+}
+
 async function autoDispense(){
+  if(needsRefill(tank)){
+  showAlert(`Tank ${tank} is below ${DEF}L. Auto dispensing is disabled.`);   //Disabling auto dispense button when volume is lower than the default
+  return;
+  }
+
   if(!tank || mode !== 'auto') return;
 
   const btn = document.getElementById('dispatch');
@@ -372,6 +420,7 @@ function manualPressStart(event){
   if(event) event.preventDefault();
 
   if(!tank || mode !== 'manual') return;
+  if(!canDispense(tank)) return;
   if(manualActive) return;
 
   manualActive = true;
