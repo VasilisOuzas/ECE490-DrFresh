@@ -9,6 +9,6 @@
 | 5 | Basic analytics | [InfluxDB Link](192.168.1.198) | Grafana Done |
 | 6 | Trend / state logic | [Script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py) | done |
 | 7 | Alerts / automation | [Script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py) | done |
-| 8 | Integration | | |
-| 9 | Testing / optimization |[test](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/tests/tests.md) |underway |
-| 10 | Final demo-ready system |[demo-folder](https://github.com/VasilisOuzas/ECE490-DrFresh/tree/main/demo-evidence) | working on it|
+| 8 | Integration |[/demo-evidence](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/tests/tests.md) |done |
+| 9 | Testing / optimization |[/demo-evidence](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/tests/tests.md) |done |
+| 10 | Final demo-ready system |[demo-folder](https://github.com/VasilisOuzas/ECE490-DrFresh/tree/main/demo-evidence) |finishing touches|
