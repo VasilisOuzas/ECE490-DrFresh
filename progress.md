@@ -96,6 +96,8 @@ Take a deeper dive into our Grafana-InfluxDB usage
 - Fixed manual despensing mode that was previously broken
 - Made some visual changes on the GUI that were proposed from the professor
 - Added buzzer for warning when a refill is needed and introduced new lines of code in [script.py](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/script.py) accordingly
+- Added active buzzer to notify when tanks are low
+- Added mailing system 
 ### In Progress
 
 ### Problems / Risks
