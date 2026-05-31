@@ -65,7 +65,7 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-We are nearly done with the project. Grafana/InfluxDB are finished, script.py got some of its last improvements and GUI got a lot of visual/functional updates. 
-We also added MQTT communication between the PI and the public Broker of our university so that subscribers can see refill/alert events outside local network's reach. 
-Right now GUI is our #1 task and hopefully one of the last.
+Generally speaking the project is done. We will keep optimizing the GUI alongside feedback from the Proffessor. Added buzzer, mailling system and optimized the GUI more. This time you can find a better implementation in `/demo-evidence` while using real tanks.
+The only thing left to do is to polish the source code, optimize the front end and create a better custom implementation that will be ready for the Workshop.
+
 
