@@ -21,7 +21,6 @@ REFILL_TOPIC = f"iot/{TEAM}/drfresh/refill"
 PUMP_A_PIN      = 17
 PUMP_B_PIN      = 27
 BUZZER_PIN      = 22
-TANK_MIN        = 0.3
 TANK_MAX        = 1.5
 FLOW_RATE       = 0.03
 DEFAULT_AMOUNT  = 0.3
@@ -158,7 +157,7 @@ def influx_update_analytics(tank):
       - manual_count             : number of successful manual dispenses
       - auto_manual_ratio        : fraction of dispenses that were auto (0.0 - 1.0)
       - refill_count             : number of refill operations
-      - low_tank_count           : number of times tank dropped below TANK_MIN
+      - low_tank_count           : number of times tank dropped below DEFAULT_AMOUNT
       - empty_tank_count         : number of dispense attempts rejected due to empty/too-low tank
       - tank_ran_empty_count     : number of times tank ran empty during a manual dispense
     """
@@ -322,7 +321,7 @@ def close_auto(tank):
         influx_write_event(tank, "auto", DEFAULT_AMOUNT, "success")
         influx_write_volume(tank, new_volume)
 
-        if new_volume < TANK_MIN:
+        if new_volume < DEFAULT_AMOUNT:
             safe_publish(ALERT_TOPIC, {
                 "tank": tank,
                 "alert": "Tank is low. Please refill soon."
@@ -363,7 +362,7 @@ def close_manual(tank):
         influx_write_event(tank, "manual", amount, "success")
         influx_write_volume(tank, new_volume)
 
-        if new_volume < TANK_MIN:
+        if new_volume < DEFAULT_AMOUNT:
             safe_publish(ALERT_TOPIC, {
                 "tank": tank,
                 "alert": "Tank is low. Please refill soon."
