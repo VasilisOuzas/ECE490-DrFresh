@@ -8,6 +8,12 @@ import threading
 import requests
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+import smtplib
+from email.message import EmailMessage
+
+EMAIL_SENDER = "vasilisouzas@gmail.com"
+EMAIL_PASSWORD = "redacted"                #There's evidence of it working on /demo-evidence
+EMAIL_RECEIVER = "suzasgamer@gmail.com"
 
 BROKER = "194.177.207.38"
 PORT = 1883
@@ -322,6 +328,8 @@ def close_auto(tank):
         influx_write_volume(tank, new_volume)
 
         if new_volume < DEFAULT_AMOUNT:
+            send_tank_alert_email(tank, new_volume)
+
             safe_publish(ALERT_TOPIC, {
                 "tank": tank,
                 "alert": "Tank is low. Please refill soon."
@@ -363,6 +371,8 @@ def close_manual(tank):
         influx_write_volume(tank, new_volume)
 
         if new_volume < DEFAULT_AMOUNT:
+            send_tank_alert_email(tank, new_volume)
+
             safe_publish(ALERT_TOPIC, {
                 "tank": tank,
                 "alert": "Tank is low. Please refill soon."
@@ -544,6 +554,28 @@ def connect_mqtt_client() -> mqtt.Client:
     client.reconnect_delay_set(min_delay=1, max_delay=30)
     client.connect(BROKER, PORT)
     return client
+
+def send_tank_alert_email(tank, volume):
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = f"DrFresh Alert: Tank {tank} is low"
+        msg["From"] = EMAIL_SENDER
+        msg["To"] = EMAIL_RECEIVER
+
+        msg.set_content(
+            f"Tank {tank} is low.\n"
+            f"Current estimated volume: {volume:.2f} L.\n"
+            "Please refill the tank."
+        )
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+
+        print(f"Email alert sent for Tank {tank}")
+
+    except Exception as e:
+        print(f"Email alert error: {e}")
 
 def main():
     global client
