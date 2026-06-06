@@ -110,8 +110,23 @@ Take a deeper dive into our Grafana-InfluxDB usage
 - Ούζας Βασίλειος
 - Αλίνο Παπαγιάννης
 
-
 ## Week 6
+### Completed
+With the firsst exam week coming the next few days, no work was done on the project, since it is nearly ready for its final presentation. Some minor tweaks and fixes were made on some testing branches.
+More progress comming next weekend. 
+### In Progress
+-
+### Problems / Risks
+- Finals Week or Final Week, stay tuned
+
+### Next Steps
+- final imporements on GUI
+- Create new presentations for final meeting and workshop
+### Team Contribution
+- Ούζας Βασίλειος
+- Αλίνο Παπαγιάννης
+
+- ## Week 7
 ### Completed
 
 ### In Progress
