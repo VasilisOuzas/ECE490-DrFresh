@@ -65,7 +65,7 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-Generally speaking the project is done. We will keep optimizing the GUI alongside feedback from the Proffessor. Added buzzer, mailling system and optimized the GUI more. This time you can find a better implementation in `/demo-evidence` while using real tanks.
-The only thing left to do is to polish the source code, optimize the front end and create a better custom implementation that will be ready for the Workshop.
+With the firsst exam week coming the next few days, no work was done on the project, since it is nearly ready for its final presentation. Some minor tweaks and fixes were made on some testing branches.
+More progress comming next weekend. 
 
 
