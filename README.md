@@ -1,3 +1,8 @@
+<div>
+  <img src="docs/logo.png" alt="DrFresh" width="120" />
+  <img src="docs/DrFresh.png" alt="DrFresh" width="240" />
+<div>
+
 # ECE490 Team Project Repository
 
 ## Team Information
@@ -65,7 +70,5 @@ system.
 - demo evidence in `demo-evidence/`
 
 ## Current Status
-With the firsst exam week coming the next few days, no work was done on the project, since it is nearly ready for its final presentation. Some minor tweaks and fixes were made on some testing branches.
-More progress comming next weekend. 
-
+The project is officially finished and ready for demonstration at the class 
 
