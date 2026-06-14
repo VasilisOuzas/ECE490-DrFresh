@@ -128,13 +128,19 @@ More progress comming next weekend.
 
 - ## Week 7
 ### Completed
-
+- Did some minor tweaks and changed how some objects react in the GUI (latest version of [index.html](https://github.com/VasilisOuzas/ECE490-DrFresh/blob/main/src/index.html))
+- Added more stuff in `\demo-evidence` and `\data` (including an irl implementaton structure proposal)
+- Everything is finally completed
 ### In Progress
-
+- Final PDF file for the last report
 ### Problems / Risks
 
 ### Next Steps
-
+- Make the repo public and update visualy the `Readme.md`
 ### Team Contribution
 - Ούζας Βασίλειος
 - Αλίνο Παπαγιάννης
+
+- ## Week 8
+
+## Thank you for your interest
